@@ -1,5 +1,6 @@
 FROM node:18-slim
 
+# Install dependencies for Canvas on Linux
 RUN apt-get update && apt-get install -y \
     python3 \
     make \
