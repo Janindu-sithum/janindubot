@@ -1,4 +1,5 @@
-FROM node:18-slim
+# Node version එක 20 දක්වා වැඩි කළා
+FROM node:20-slim
 
 # Install git and canvas dependencies for Linux
 RUN apt-get update && apt-get install -y \
