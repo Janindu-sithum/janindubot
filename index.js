@@ -6,7 +6,7 @@ const { initializeApp } = require('firebase/app');
 const { getFirestore, doc, setDoc, getDoc } = require('firebase/firestore');
 const { createCanvas } = require('canvas');
 
-// --- Express Server (Keeping Bot Alive) ---
+// --- Express Server ---
 const app = express();
 app.get('/', (req, res) => res.send('Lucifer Bot is Online! 🚀'));
 app.listen(process.env.PORT || 3000, () => console.log('Web Server Ready!'));
@@ -53,11 +53,14 @@ async function startBot() {
 
     // --- Pairing Code Logic ---
     if (!sock.authState.creds.registered) {
-        // මෙතන ඔයාගේ WhatsApp Number එක දෙන්න (International Format: 947xxxxxxxx)
-        const phoneNumber = "94740256201"; 
+        const phoneNumber = "94740256201"; // <--- මේක ඔයාගේ අංකයට මාරු කරන්න මචං
         setTimeout(async () => {
-            let code = await sock.requestPairingCode(phoneNumber);
-            console.log(`\n\n--- YOUR PAIRING CODE: ${code} ---\n\n`);
+            try {
+                let code = await sock.requestPairingCode(phoneNumber);
+                console.log(`\n\n--- YOUR PAIRING CODE: ${code} ---\n\n`);
+            } catch (err) {
+                console.log("Pairing code requesting...");
+            }
         }, 3000);
     }
 
@@ -78,11 +81,13 @@ async function startBot() {
         if (!msg.message || msg.key.fromMe) return;
 
         const sender = msg.key.remoteJid;
+        const isGroup = sender.endsWith('@g.us');
         const body = (msg.message.conversation || msg.message.extendedTextMessage?.text || "").trim();
 
+        // 1. Register Command
         if (body.startsWith('#register')) {
             const args = body.split(' ');
-            if (args.length < 3) return sock.sendMessage(sender, { text: "❌ #register [නම] [FF_ID]" });
+            if (args.length < 3) return sock.sendMessage(sender, { text: "❌ Usage: #register [Name] [FF_ID]" });
 
             const name = args[1];
             const ffid = args[2];
@@ -95,10 +100,32 @@ async function startBot() {
 
                 await setDoc(userRef, { number: sender, name, ffid, guildID });
                 const card = await createMemberCard(name, guildID, ffid);
-                await sock.sendMessage(sender, { image: card, caption: `✅ Registered! ID: ${guildID}` });
-            } catch (e) {
-                console.log(e);
+                await sock.sendMessage(sender, { image: card, caption: `✅ Registered Successfully!\n\n🆔 Guild ID: ${guildID}` });
+            } catch (e) { console.log(e); }
+        }
+
+        // 2. TagAll Command
+        if (body.startsWith('#tagall')) {
+            if (!isGroup) return sock.sendMessage(sender, { text: "❌ මේ Command එක වැඩ කරන්නේ ගෘප් ඇතුළේ විතරයි!" });
+
+            const groupMetadata = await sock.groupMetadata(sender);
+            const participants = groupMetadata.participants;
+            
+            let message = body.slice(8) || "Attention Everyone! 📢";
+            message += "\n\n";
+            
+            const mentions = [];
+            for (let participant of participants) {
+                message += ` @${participant.id.split('@')[0]}`;
+                mentions.push(participant.id);
             }
+
+            await sock.sendMessage(sender, { text: message, mentions: mentions });
+        }
+
+        // 3. Ping Command
+        if (body === '.ping') {
+            await sock.sendMessage(sender, { text: "Pong! 🚀 Bot is active." });
         }
     });
 }
