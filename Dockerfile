@@ -1,7 +1,8 @@
 FROM node:18-slim
 
-# Install dependencies for Canvas on Linux
+# Install git and canvas dependencies for Linux
 RUN apt-get update && apt-get install -y \
+    git \
     python3 \
     make \
     g++ \
@@ -14,8 +15,15 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
+
+# Copy package files
 COPY package*.json ./
+
+# Install npm dependencies
 RUN npm install
+
+# Copy the rest of the code
 COPY . .
 
+# Start the bot
 CMD ["node", "index.js"]
